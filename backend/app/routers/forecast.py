@@ -1,3 +1,4 @@
+import math
 from datetime import date
 from io import BytesIO
 
@@ -167,16 +168,26 @@ def preview_forecast_json(
         demand *= body.safety_stock_factor
         suggested = max(expiry_adjustment(p.default_expiry_days, body.horizon, demand), 0.0)
         stock = estimated_stock(db, p.id)
+        all_evals = [
+            {
+                "name": e.name,
+                "mape": round(e.mape, 6) if not math.isnan(e.mape) and e.mape < 1e8 else None,
+                "r2": round(e.r2, 6) if not math.isnan(e.r2) and math.isfinite(e.r2) else None,
+                "test_pred": round(e.test_pred, 4) if math.isfinite(e.test_pred) else None,
+            }
+            for e in evals
+        ]
         out.append(
             {
                 "product_name": p.name,
                 "best_model": best,
-                "test_mape": best_mape,
-                "test_r2": best_r2,
-                "forecasted_demand_units": demand,
-                "estimated_stock_units": stock,
-                "suggested_purchase_units": suggested,
-                "net_to_buy_after_stock": max(suggested - stock, 0.0),
+                "test_mape": round(best_mape, 6) if not math.isnan(best_mape) and best_mape < 1e8 else None,
+                "test_r2": round(best_r2, 6) if not math.isnan(best_r2) and math.isfinite(best_r2) else None,
+                "forecasted_demand_units": round(demand, 4),
+                "estimated_stock_units": round(stock, 4),
+                "suggested_purchase_units": round(suggested, 4),
+                "net_to_buy_after_stock": round(max(suggested - stock, 0.0), 4),
+                "all_evals": all_evals,
             }
         )
     return {"items": out}
